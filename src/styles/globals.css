@@ -1,0 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		--color-primary: #5e35b1;
+		--color-success: #00c853;
+		--color-background: #ffffff;
+		--color-surface: #f5f5f7;
+		--color-text: #212121;
+		--color-text-secondary: #666666;
+
+		--radius: 14px;
+	}
+
+	
+	body {
+		@apply bg-white text-[#212121];
+		font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display',
+			system-ui, sans-serif;
+		-webkit-font-smoothing: antialiased;
+		-moz-osx-font-smoothing: grayscale;
+	}
+
+	h1 {
+		@apply tracking-tight;
+		font-size: 32px;
+		font-weight: 800;
+	}
+
+	h2 {
+		@apply tracking-tight;
+		font-size: 28px;
+		font-weight: 700;
+	}
+
+	h3 {
+		@apply tracking-tight;
+		font-size: 24px;
+		font-weight: 700;
+	}
+
+	h4 {
+		font-size: 20px;
+		font-weight: 600;
+	}
+
+	p {
+		font-size: 16px;
+		line-height: 1.5;
+	}
+
+	/* Hide scrollbars but keep functionality */
+	.hide-scrollbar {
+		-ms-overflow-style: none;
+		scrollbar-width: none;
+	}
+
+	.hide-scrollbar::-webkit-scrollbar {
+		display: none;
+	}
+}
