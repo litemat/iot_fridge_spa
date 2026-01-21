@@ -1,32 +1,14 @@
-import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Minus, Plus, ArrowLeft, ChevronRight, Trash2, MoveLeft } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { CartItem } from '../types';
+import { useNavigate } from 'react-router-dom';
 import { products } from '../data/products';
 import { useLanguage } from '../context/LanguageContext';
+import { useCart } from '../context/CartContext';
 
 export function CartScreen() {
-  const location = useLocation();
   const navigate = useNavigate();
   const { language, t } = useLanguage();
-  const [cart, setCart] = useState<CartItem[]>(location.state?.cart || []);
-
-  const updateQuantity = (id: string, delta: number) => {
-    setCart(prev =>
-      prev
-        .map(item =>
-          item.id === id
-            ? { ...item, quantity: Math.max(0, item.quantity + delta) }
-            : item
-        )
-        .filter(item => item.quantity > 0)
-    );
-  };
-
-  const removeItem = (id: string) => {
-    setCart(prev => prev.filter(item => item.id !== id));
-  };
+  const { cart, updateQuantity, removeItem, addToCart } = useCart();
 
   const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -46,7 +28,7 @@ export function CartScreen() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4 lg:gap-6">
             <button
-              onClick={() => navigate('/menu')}
+              onClick={() => navigate('/')}
               className="rounded-full p-2 hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft size={26} />
@@ -69,7 +51,7 @@ export function CartScreen() {
               {t('Корзина пуста', 'Себет бос')}
             </p>
             <button
-              onClick={() => navigate('/menu')}
+              onClick={() => navigate('/')}
               className="rounded-2xl px-8 py-4"
               style={{ backgroundColor: '#5E35B1', color: 'white', fontSize: '18px', fontWeight: '600' }}
             >
@@ -207,7 +189,7 @@ export function CartScreen() {
                       className="flex-shrink-0 w-56 rounded-2xl bg-white p-5 cursor-pointer transition-all hover:shadow-xl"
                       style={{ boxShadow: '0px 6px 20px rgba(0,0,0,0.08)' }}
                       onClick={() => {
-                        setCart(prev => [...prev, { ...drink, quantity: 1 }]);
+                        addToCart(drink, 1);
                       }}
                     >
                       <div className="mb-4 aspect-square overflow-hidden rounded-xl bg-gray-50">

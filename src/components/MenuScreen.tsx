@@ -2,17 +2,18 @@ import { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, ShoppingCart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { products } from '../data/products';
-import { Product, CartItem } from '../types';
+import { Product } from '../types';
 import { useNavigate } from 'react-router-dom';
 import { useLanguage } from '../context/LanguageContext';
+import { useCart } from '../context/CartContext';
 import { LanguageToggle } from './LanguageToggle';
 import { ProductDetailModal } from './ProductDetailModal';
 
 export function MenuScreen() {
   const navigate = useNavigate();
   const { language, t } = useLanguage();
+  const { cart, addToCart } = useCart();
   const [activeCategory, setActiveCategory] = useState<'all' | 'breakfast' | 'mains' | 'drinks'>('all');
-  const [cart, setCart] = useState<CartItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
@@ -27,26 +28,12 @@ export function MenuScreen() {
     ? products 
     : products.filter(p => p.category === activeCategory);
 
-  const addToCart = (product: Product, quantity: number = 1) => {
-    setCart(prev => {
-      const existing = prev.find(item => item.id === product.id);
-      if (existing) {
-        return prev.map(item =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + quantity }
-            : item
-        );
-      }
-      return [...prev, { ...product, quantity }];
-    });
-  };
-
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
   const handleCheckout = () => {
     if (totalItems > 0) {
-      navigate('/cart', { state: { cart } });
+      navigate('/cart');
     }
   };
 

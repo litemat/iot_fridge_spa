@@ -1,205 +1,193 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import { Smartphone, Scan, Shield, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { useLanguage } from '../context/LanguageContext';
+import { motion } from 'framer-motion'
+import { Loader2, Shield, Smartphone, X } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
+import { useEffect, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useCart } from '../context/CartContext'
+import { useLanguage } from '../context/LanguageContext'
+import { usePaymentFlow } from '../hooks/usePaymentFlow'
+import { AppConfig, CartItem as PaymentCartItem } from '../types/payment'
+
+const VENDING_CONFIG: AppConfig = {
+	deviceid: '00000000009',
+	companyshh: '20251210',
+	paycompany: 'vid.company(13979)',
+	code: '36', // Исправил на 36, как в твоем бэкенде (CHANNEL_ID)
+
+	// ИСПРАВЛЕННЫЕ ПУТИ (теперь они соответствуют твоему server.js):
+	gettwocodeurl: 'http://localhost:5000/api/get-qr',
+	looppayurl: 'http://localhost:5000/api/check-status',
+	salereporturl: 'http://localhost:5000/api/report-shipping',
+}
 
 export function QRAuthScreen() {
-  const navigate = useNavigate();
-  const { t } = useLanguage();
-  const [scanning, setScanning] = useState(false);
-  const [progress, setProgress] = useState(0);
+	const navigate = useNavigate()
+	const { t } = useLanguage()
+	const { cart, clearCart } = useCart()
+	const startedRef = useRef(false)
 
-  useEffect(() => {
-    // Simulate scanning progress
-    if (scanning) {
-      const interval = setInterval(() => {
-        setProgress(prev => {
-          if (prev >= 100) {
-            clearInterval(interval);
-            setTimeout(() => navigate('/success'), 500);
-            return 100;
-          }
-          return prev + 2;
-        });
-      }, 30);
-      return () => clearInterval(interval);
-    }
-  }, [scanning, navigate]);
+	// ТЕПЕРЬ ОШИБКИ НЕТ, ТАК КАК ПЕРЕДАН VENDING_CONFIG
+	const { status, qrData, errorMsg, startPayment } =
+		usePaymentFlow(VENDING_CONFIG)
 
-  const handleScanStart = () => {
-    setScanning(true);
-  };
+	const transformedCart = useMemo<PaymentCartItem[]>(() => {
+		const result: PaymentCartItem[] = []
+		cart.forEach(item => {
+			for (let i = 0; i < item.quantity; i++) {
+				result.push({
+					id: item.id,
+					trackNo: item.trackno,
+					name: item.name,
+					price: item.price,
+				})
+			}
+		})
+		return result
+	}, [cart])
 
-  return (
-    <div className="relative min-h-screen w-full bg-[#F5F5F7] overflow-hidden flex items-center justify-center p-4">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-5">
-        <div className="absolute inset-0" style={{
-          backgroundImage: 'radial-gradient(circle, #5E35B1 1px, transparent 1px)',
-          backgroundSize: '40px 40px',
-        }} />
-      </div>
+	useEffect(() => {
+		if (startedRef.current) return
+		if (transformedCart.length > 0) {
+			startedRef.current = true
+			startPayment(transformedCart)
+		} else {
+			navigate('/cart')
+		}
+	}, [navigate, startPayment, transformedCart])
 
-      {/* Main Card */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative z-10 rounded-3xl bg-white p-10 lg:p-16 text-center"
-        style={{
-          boxShadow: '0px 20px 60px rgba(0,0,0,0.12)',
-          maxWidth: '700px',
-          width: '100%',
-        }}
-      >
-        {/* Icon */}
-        <div className="mb-8 flex justify-center">
-          <div 
-            className="rounded-2xl p-8"
-            style={{ backgroundColor: '#EDE7F6' }}
-          >
-            {scanning ? (
-              <Scan size={60} style={{ color: '#5E35B1' }} />
-            ) : (
-              <Smartphone size={60} style={{ color: '#5E35B1' }} />
-            )}
-          </div>
-        </div>
+	useEffect(() => {
+		if (status === 'SUCCESS') {
+			clearCart()
+			const timer = setTimeout(() => navigate('/success'), 1000)
+			return () => clearTimeout(timer)
+		}
+	}, [status, navigate, clearCart])
 
-        {/* Title */}
-        <h2 className="mb-4" style={{ fontSize: '32px', fontWeight: '800' }}>
-          {scanning 
-            ? t('Сканирование...', 'Сканерлеу...') 
-            : t('Сканируйте для оплаты', 'Төлем үшін сканерлеңіз')
-          }
-        </h2>
+	return (
+		<div className='relative min-h-screen w-full bg-[#F5F5F7] overflow-hidden flex items-center justify-center p-4'>
+			<div className='absolute inset-0 opacity-5'>
+				<div
+					className='absolute inset-0'
+					style={{
+						backgroundImage:
+							'radial-gradient(circle, #5E35B1 1px, transparent 1px)',
+						backgroundSize: '40px 40px',
+					}}
+				/>
+			</div>
 
-        {/* Description */}
-        <p className="text-[#666666] mb-12" style={{ fontSize: '18px', lineHeight: '1.6' }}>
-          {scanning 
-            ? t('Пожалуйста, подождите, идет проверка платежа', 'Күтіңіз, төлем тексерілуде')
-            : t('Откройте приложение и отсканируйте Kaspi QR код для завершения оплаты', 'Қосымшаны ашып, төлемді аяқтау үшін Kaspi QR кодын сканерлеңіз')
-          }
-        </p>
+			<motion.div
+				initial={{ opacity: 0, scale: 0.9 }}
+				animate={{ opacity: 1, scale: 1 }}
+				className='relative z-10 rounded-3xl bg-white p-10 lg:p-16 text-center'
+				style={{
+					boxShadow: '0px 20px 60px rgba(0,0,0,0.12)',
+					maxWidth: '700px',
+					width: '100%',
+				}}
+			>
+				<div className='mb-8 flex justify-center'>
+					<div
+						className='rounded-2xl p-8'
+						style={{ backgroundColor: '#EDE7F6' }}
+					>
+						{status === 'SUCCESS' || status === 'DISPENSING' ? (
+							<motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}>
+								✅
+							</motion.div>
+						) : (
+							<Smartphone size={60} style={{ color: '#5E35B1' }} />
+						)}
+					</div>
+				</div>
 
-        {/* QR Frame / Progress Ring */}
-        <div className="mb-12 flex justify-center">
-          <div className="relative" style={{ width: '280px', height: '280px' }}>
-            {scanning ? (
-              // Progress Ring
-              <svg className="absolute inset-0" viewBox="0 0 100 100">
-                <circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="#E0E0E0"
-                  strokeWidth="4"
-                />
-                <motion.circle
-                  cx="50"
-                  cy="50"
-                  r="45"
-                  fill="none"
-                  stroke="#5E35B1"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray={282.7}
-                  strokeDashoffset={282.7 - (282.7 * progress) / 100}
-                  style={{ transformOrigin: 'center', transform: 'rotate(-90deg)' }}
-                />
-                <text
-                  x="50"
-                  y="50"
-                  textAnchor="middle"
-                  dy="0.3em"
-                  style={{ fontSize: '24px', fontWeight: '800', fill: '#5E35B1' }}
-                >
-                  {Math.round(progress)}%
-                </text>
-              </svg>
-            ) : (
-              // QR Scanner Frame
-              <div 
-                className="flex items-center justify-center rounded-2xl border-4"
-                style={{ 
-                  borderColor: '#5E35B1',
-                  width: '100%',
-                  height: '100%',
-                  backgroundColor: '#FAFAFA',
-                }}
-              >
-                {/* Kaspi Logo Placeholder */}
-                <div className="text-center">
-                  <p style={{ fontSize: '48px', fontWeight: '800', color: '#5E35B1' }}>
-                    Kaspi
-                  </p>
-                  <p className="text-[#666666]" style={{ fontSize: '14px' }}>
-                    QR
-                  </p>
-                </div>
-                
-                {/* Corner Decorations */}
-                <div className="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 rounded-tl-2xl" style={{ borderColor: '#5E35B1' }} />
-                <div className="absolute top-0 right-0 w-16 h-16 border-t-4 border-r-4 rounded-tr-2xl" style={{ borderColor: '#5E35B1' }} />
-                <div className="absolute bottom-0 left-0 w-16 h-16 border-b-4 border-l-4 rounded-bl-2xl" style={{ borderColor: '#5E35B1' }} />
-                <div className="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 rounded-br-2xl" style={{ borderColor: '#5E35B1' }} />
-                
-                {/* Animated Scan Line */}
-                <motion.div
-                  className="absolute left-4 right-4 h-1 rounded-full"
-                  style={{ backgroundColor: '#5E35B1', opacity: 0.5 }}
-                  animate={{ y: [-100, 100] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                />
-              </div>
-            )}
-          </div>
-        </div>
+				<h2 className='mb-4' style={{ fontSize: '32px', fontWeight: '800' }}>
+					{status === 'LOADING_QR' && t('Загрузка...', 'Жүктеу...')}
+					{status === 'WAITING_PAYMENT' &&
+						t('Сканируйте для оплаты', 'Төлем үшін сканерлеңіз')}
+					{status === 'DISPENSING' && t('Оплата прошла!', 'Төлем сәтті!')}
+					{status === 'ERROR' && t('Ошибка оплаты', 'Төлем қатесі')}
+				</h2>
 
-        {/* Action Buttons */}
-        {!scanning ? (
-          <button
-            onClick={() => navigate('/')}
-            className="w-full rounded-2xl px-12 py-5 transition-transform hover:scale-[1.02] active:scale-[0.98]"
-            style={{
-              backgroundColor: '#6B7280',
-              color: 'white',
-              fontSize: '20px',
-              fontWeight: '700',
-              minHeight: '64px',
-            }}
-          >
-            {t('Вернуться', 'Оралу')}
-          </button>
-        ) : (
-          <div className="space-y-4">
-            <div className="flex items-center justify-center gap-3 text-[#666666]" style={{ fontSize: '17px' }}>
-              <Shield size={22} style={{ color: '#5E35B1' }} />
-              {t('Защищённое соединение', 'Қорғалған байланыс')}
-            </div>
-            <button
-              onClick={() => navigate('/cart')}
-              className="w-full flex items-center justify-center gap-2 rounded-2xl px-12 py-3 transition-colors"
-              style={{
-                backgroundColor: '#F5F5F5',
-                color: '#666666',
-                fontSize: '16px',
-                fontWeight: '600',
-                border: '1px solid #E0E0E0'
-              }}
-            >
-              <X size={20} />
-              {t('Отмена платежа', 'Төлемді болдырмау')}
-            </button>
-          </div>
-        )}
-      </motion.div>
+				<p
+					className='text-[#666666] mb-12'
+					style={{ fontSize: '18px', lineHeight: '1.6' }}
+				>
+					{status === 'LOADING_QR' &&
+						t('Получаем QR-код от Kaspi...', 'Kaspi-ден QR-код алу...')}
+					{status === 'WAITING_PAYMENT' &&
+						t(
+							'Откройте приложение Kaspi.kz и отсканируйте код',
+							'Kaspi.kz қосымшасын ашып, кодты сканерлеңіз',
+						)}
+					{status === 'DISPENSING' &&
+						t('Пожалуйста, заберите ваш товар', 'Тауарыңызды алыңыз')}
+					{status === 'ERROR' &&
+						(errorMsg || t('Попробуйте еще раз', 'Қайтадан байқап көріңіз'))}
+				</p>
 
-      {/* Bottom Info */}
-      <div className="absolute bottom-8 left-0 right-0 text-center text-[#666666]" style={{ fontSize: '15px' }}>
-        <p>{t('Платёж обрабатывается безопасно через ваше приложение', 'Төлем қосымша арқылы қауіпсіз өңделеді')}</p>
-      </div>
-    </div>
-  );
+				<div className='mb-12 flex justify-center'>
+					<div
+						className='relative flex items-center justify-center'
+						style={{ width: '280px', height: '280px' }}
+					>
+						{status === 'LOADING_QR' && (
+							<Loader2 className='animate-spin' size={48} color='#5E35B1' />
+						)}
+						{status === 'WAITING_PAYMENT' && qrData && (
+							<div
+								className='relative p-4 bg-white rounded-2xl border-4'
+								style={{ borderColor: '#5E35B1' }}
+							>
+								<QRCodeSVG value={qrData} size={240} />
+								<motion.div
+									className='absolute left-2 right-2 h-1 rounded-full'
+									style={{ backgroundColor: '#5E35B1', opacity: 0.4 }}
+									animate={{ y: [0, 240] }}
+									transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+								/>
+							</div>
+						)}
+						{status === 'DISPENSING' && (
+							<div className='text-6xl animate-bounce'>📦</div>
+						)}
+						{status === 'ERROR' && (
+							<div className='text-red-500 font-bold'>
+								<X size={64} className='mx-auto mb-2' />
+								<button
+									onClick={() => startPayment(transformedCart)}
+									className='underline'
+								>
+									{t('Повторить', 'Қайталау')}
+								</button>
+							</div>
+						)}
+					</div>
+				</div>
+
+				<div className='space-y-4'>
+					<div
+						className='flex items-center justify-center gap-3 text-[#666666]'
+						style={{ fontSize: '17px' }}
+					>
+						<Shield size={22} style={{ color: '#5E35B1' }} />
+						{t('Защищённое соединение', 'Қорғалған байланыс')}
+					</div>
+					<button
+						onClick={() => navigate('/cart')}
+						className='w-full flex items-center justify-center gap-2 rounded-2xl px-12 py-3'
+						style={{
+							backgroundColor: '#F5F5F5',
+							color: '#666666',
+							fontWeight: '600',
+							border: '1px solid #E0E0E0',
+						}}
+					>
+						<X size={20} />
+						{t('Отмена платежа', 'Төлемді болдырмау')}
+					</button>
+				</div>
+			</motion.div>
+		</div>
+	)
 }
