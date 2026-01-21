@@ -5,7 +5,6 @@ import { v4 as uuidv4 } from 'uuid'
 import { paymentApi } from '../services/paymentApi'
 import { AppConfig, CartItem } from '../types/payment'
 
-// URL локального контроллера холодильника (из вашего gitlab примера)
 // Обычно это localhost на порту, где крутится Python/Node скрипт
 const HARDWARE_API_URL = 'http://localhost:5000/api/dispense'
 
@@ -55,8 +54,19 @@ export const usePaymentFlow = (config: AppConfig) => {
 			if (res.code === '1') {
 				setQrData(res.twocode)
 				sessionData.current.tOrderId = res.torderid
+
+				const effectiveOrderId =
+					res.orderid || res.totalorderid || sessionData.current.totalOrderId
+				sessionData.current.totalOrderId = effectiveOrderId
+
+				if (Array.isArray(res.subOrderIds) && res.subOrderIds.length > 0) {
+					res.subOrderIds.forEach((subId, index) => {
+						sessionData.current.subOrderMap[index] = subId
+					})
+				}
+
 				setStatus('WAITING_PAYMENT')
-				startPolling(totalOrderId)
+				startPolling(effectiveOrderId)
 			} else {
 				throw new Error(res.msg || 'Ошибка получения QR')
 			}
@@ -75,7 +85,7 @@ export const usePaymentFlow = (config: AppConfig) => {
 				const res = await paymentApi.checkStatus(
 					config,
 					orderId,
-					sessionData.current.tOrderId
+					sessionData.current.tOrderId,
 				)
 
 				if (res.code === '1') {
@@ -120,7 +130,7 @@ export const usePaymentFlow = (config: AppConfig) => {
 					subOrderId,
 					tOrderId,
 					item.trackNo,
-					true
+					true,
 				)
 			} catch (hwError) {
 				console.error(`Ошибка выдачи ячейки ${item.trackNo}`, hwError)
@@ -131,7 +141,7 @@ export const usePaymentFlow = (config: AppConfig) => {
 					subOrderId,
 					tOrderId,
 					item.trackNo,
-					false
+					false,
 				)
 			}
 		}

@@ -6,21 +6,18 @@ import dotenv from 'dotenv'
 import express from 'express'
 import { v4 as uuidv4 } from 'uuid'
 
-// Load environment variables from backend/.env
 dotenv.config()
 
 const app = express()
 
-// Disable X-Powered-By header for security
 app.disable('x-powered-by')
 
 const PORT = Number(process.env.PORT || 5000)
 const APP_KEY = process.env.APP_KEY || ''
-const CALLBACK_DOMAIN = process.env.CALLBACK_DOMAIN || 'http://localhost:5000'
 
 const PRICE_MULTIPLIER = Number(process.env.PRICE_MULTIPLIER || 100)
 
-// Рабочие параметры как в Postman
+// Рабочие параметры
 const MACH_ID = process.env.MACH_ID || '00000000007'
 const DEVICE_ID = process.env.DEVICE_ID || '00000000000'
 const COMPANY_SHH = process.env.COMPANY_SHH || '20251210'
@@ -72,7 +69,6 @@ function getRequestTimestamp() {
 function generateSecurityParams(securityTimestamp) {
 	const randstr = uuidv4().replace(/-/g, '').substring(0, 16)
 
-	// Sort appkey, randstr, timestamp lexicographically
 	const parts = [APP_KEY, securityTimestamp, randstr].sort()
 	const raw = parts.join('')
 
@@ -211,8 +207,10 @@ app.post('/api/get-qr', async (req, res) => {
 				code: response.data?.code ?? '',
 				msg: response.data?.msg ?? '',
 				orderid: response.data?.orderid ?? '',
+				totalorderid,
 				torderid: response.data?.torderid ?? '',
 				twocode: response.data?.twocode ?? '',
+				subOrderIds: goodsinfo.map(g => g.orderid),
 				raw: response.data ?? {},
 			}
 		})()
@@ -247,15 +245,14 @@ app.post('/api/get-qr', async (req, res) => {
 	}
 })
 
-// GET /api/check-status/:orderId/:torderid
-app.get('/api/check-status/:orderId/:torderid', async (req, res) => {
+// POST /api/check-status
+app.post('/api/check-status', async (req, res) => {
 	try {
-		const { orderId, torderid } = req.params
-
-		if (!orderId || !torderid) {
+		const { orderid, torderid } = req.body || {}
+		if (!orderid || !torderid) {
 			return res
 				.status(400)
-				.json({ error: 'orderId and torderid are required' })
+				.json({ error: 'orderid and torderid are required' })
 		}
 
 		const requestTimestamp = getRequestTimestamp()
@@ -264,26 +261,22 @@ app.get('/api/check-status/:orderId/:torderid', async (req, res) => {
 
 		const paramsObj = {
 			ver: 'v2',
-			orderid: String(orderId),
-			torderid: String(torderid),
 			machid: MACH_ID,
-			channelid: CHANNEL_ID,
 			randstr,
+			orderid: String(orderid),
+			channelid: CHANNEL_ID,
+			torderid: String(torderid),
 			timestamp,
 			sign,
 		}
 
-		const searchParams = new URLSearchParams()
-		for (const [key, value] of Object.entries(paramsObj)) {
-			searchParams.append(key, value ?? '')
-		}
+		console.log('🔎 Status request to operator (POST):', {
+			url: LOOP_PAY_URL,
+			payload: paramsObj,
+		})
 
-		const url = LOOP_PAY_URL
-
-		const response = await axios.post(url, searchParams.toString(), {
-			headers: {
-				'Content-Type': 'application/x-www-form-urlencoded',
-			},
+		let response = await axios.post(LOOP_PAY_URL, paramsObj, {
+			headers: { 'Content-Type': 'application/json' },
 			timeout: 10000,
 		})
 
@@ -292,14 +285,13 @@ app.get('/api/check-status/:orderId/:torderid', async (req, res) => {
 			msg: response.data?.msg ?? '',
 			orderid: response.data?.orderid ?? '',
 			torderid: response.data?.torderid ?? '',
+			request: { method: 'POST', url: LOOP_PAY_URL, payload: paramsObj },
 			raw: response.data ?? {},
 		})
 	} catch (err) {
-		console.error('Error in /api/check-status:', err)
-
+		console.error('Error in POST /api/check-status:', err)
 		const status = err?.response?.status || 500
 		const upstream = err?.response?.data
-
 		return res.status(status).json({
 			error: 'Failed to check payment status',
 			message: err?.message || 'Unexpected error',
@@ -342,6 +334,11 @@ app.post('/api/report-shipping', async (req, res) => {
 				orderid: String(subOrderId),
 				torderid: String(tOrderId),
 				machid: machineId,
+				channelid: CHANNEL_ID,
+				deviceid: DEVICE_ID,
+				companyshh: COMPANY_SHH,
+				paycompany: PAY_COMPANY,
+				isenable: '0',
 				trackno: String(trackNo),
 				status: success ? '1' : '0',
 				errinfo: success ? '' : String(error || 'Dispense Error'),

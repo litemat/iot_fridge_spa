@@ -34,7 +34,9 @@ export interface QrResponse {
 	msg: string
 	twocode: string // Данные для QR
 	orderid: string // totalorderid
+	totalorderid?: string
 	torderid: string // ID на стороне оператора
+	subOrderIds?: string[]
 }
 
 // Ответ от проверки статуса [cite: 104]

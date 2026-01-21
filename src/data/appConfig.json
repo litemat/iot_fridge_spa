@@ -1,11 +1,11 @@
 {
-	"code": "1",
-	"deviceid": "12345678901",
+	"code": "36",
+	"deviceid": "00000000009",
 	"companyshh": "20251210",
-	"gettwocodeurl": "https://kaspi.negiz.pro/device/le/qr",
-	"looppayurl": "https://kaspi.negiz.pro/device/le/result",
-	"salereporturl": "https://kaspi.negiz.pro/device/le/report",
+	"gettwocodeurl": "http://localhost:5000/api/get-qr",
+	"looppayurl": "http://localhost:5000/api/check-status",
+	"salereporturl": "http://localhost:5000/api/report-shipping",
 	"isenable": "0",
 	"paycompany": "vid.company(13979)",
-	"proxyUrl": "http://localhost:5001"
+	"proxyUrl": "http://localhost:5000"
 }

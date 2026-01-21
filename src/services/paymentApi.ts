@@ -9,18 +9,15 @@ export const paymentApi = {
 		totalOrderId: string,
 	): Promise<QrResponse> => {
 		// Отправляем на локальный бэкенд POST /api/get-qr
-		const response = await axios.post<QrResponse>(
-			'http://localhost:5000/api/get-qr',
-			{
-				items: items.map(item => ({
-					id: item.id,
-					trackno: item.trackNo,
-					name: item.name,
-					price: item.price,
-					quantity: 1, // Бэкенд делает expandItems
-				})),
-			},
-		)
+		const response = await axios.post<QrResponse>(config.gettwocodeurl, {
+			items: items.map(item => ({
+				id: item.id,
+				trackno: item.trackNo,
+				name: item.name,
+				price: item.price,
+				quantity: 1, // Бэкенд делает expandItems
+			})),
+		})
 		return response.data
 	},
 
@@ -30,10 +27,11 @@ export const paymentApi = {
 		totalOrderId: string,
 		torderid: string, // Добавляем torderid, он критичен для твоего бэкенда
 	): Promise<PollResponse> => {
-		// Обращаемся к локальному бэкенду GET /api/check-status/:orderId/:torderid
-		const response = await axios.get<PollResponse>(
-			`http://localhost:5000/api/check-status/${totalOrderId}/${torderid}`,
-		)
+		// Обращаемся к локальному бэкенду POST /api/check-status
+		const response = await axios.post<PollResponse>(config.looppayurl, {
+			orderid: totalOrderId,
+			torderid: torderid,
+		})
 		return response.data
 	},
 
@@ -58,10 +56,7 @@ export const paymentApi = {
 			],
 		}
 
-		const response = await axios.post(
-			'http://localhost:5000/api/report-shipping',
-			body,
-		)
+		const response = await axios.post(config.salereporturl, body)
 		return response.data
 	},
 }

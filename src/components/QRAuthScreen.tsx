@@ -5,20 +5,11 @@ import { useEffect, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../context/CartContext'
 import { useLanguage } from '../context/LanguageContext'
+import configData from '../data/appConfig.json'
 import { usePaymentFlow } from '../hooks/usePaymentFlow'
 import { AppConfig, CartItem as PaymentCartItem } from '../types/payment'
 
-const VENDING_CONFIG: AppConfig = {
-	deviceid: '00000000009',
-	companyshh: '20251210',
-	paycompany: 'vid.company(13979)',
-	code: '36', // Исправил на 36, как в твоем бэкенде (CHANNEL_ID)
-
-	// ИСПРАВЛЕННЫЕ ПУТИ (теперь они соответствуют твоему server.js):
-	gettwocodeurl: 'http://localhost:5000/api/get-qr',
-	looppayurl: 'http://localhost:5000/api/check-status',
-	salereporturl: 'http://localhost:5000/api/report-shipping',
-}
+const config = configData as unknown as AppConfig
 
 export function QRAuthScreen() {
 	const navigate = useNavigate()
@@ -27,8 +18,7 @@ export function QRAuthScreen() {
 	const startedRef = useRef(false)
 
 	// ТЕПЕРЬ ОШИБКИ НЕТ, ТАК КАК ПЕРЕДАН VENDING_CONFIG
-	const { status, qrData, errorMsg, startPayment } =
-		usePaymentFlow(VENDING_CONFIG)
+	const { status, qrData, errorMsg, startPayment } = usePaymentFlow(config)
 
 	const transformedCart = useMemo<PaymentCartItem[]>(() => {
 		const result: PaymentCartItem[] = []

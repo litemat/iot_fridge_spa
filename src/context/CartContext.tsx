@@ -1,5 +1,11 @@
 // CartContext.tsx
-import { createContext, ReactNode, useContext, useState, useCallback } from 'react'
+import {
+	createContext,
+	ReactNode,
+	useCallback,
+	useContext,
+	useState,
+} from 'react'
 import { Product } from '../types'
 
 // Интерфейс товара в корзине
@@ -12,7 +18,7 @@ export interface CartItem {
 	price: number
 	image: string
 	quantity: number
-	trackno: string // Номер ячейки в холодильнике
+	trackno: string // Номер ячейки
 }
 
 interface CartContextType {
@@ -38,7 +44,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 				return prev.map(item =>
 					item.id === product.id
 						? { ...item, quantity: item.quantity + quantity }
-						: item
+						: item,
 				)
 			}
 			// Добавляем новый товар
@@ -61,14 +67,15 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
 	// Изменение количества товара
 	const updateQuantity = useCallback((id: string, delta: number) => {
-		setCart(prev =>
-			prev
-				.map(item =>
-					item.id === id
-						? { ...item, quantity: Math.max(0, item.quantity + delta) }
-						: item
-				)
-				.filter(item => item.quantity > 0) // Удаляем товары с нулевым количеством
+		setCart(
+			prev =>
+				prev
+					.map(item =>
+						item.id === id
+							? { ...item, quantity: Math.max(0, item.quantity + delta) }
+							: item,
+					)
+					.filter(item => item.quantity > 0), // Удаляем товары с нулевым количеством
 		)
 	}, [])
 
